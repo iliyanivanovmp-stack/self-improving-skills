@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Improving Skills</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --border: #222;
+    --accent: #4f8ef7;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --text: #e8e8e8;
+    --muted: #666;
+    --code-bg: #1a1a1a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .deck {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    padding: 60px 80px;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .slide.active { display: flex; }
+
+  /* Nav */
+  .nav {
+    position: fixed;
+    bottom: 28px;
+    right: 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  .nav-btn {
+    width: 40px; height: 40px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s, background .15s;
+  }
+  .nav-btn:hover { border-color: var(--accent); background: #1a1a2e; }
+  .slide-counter {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+    text-align: center;
+  }
+
+  /* Progress bar */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width .2s ease;
+    z-index: 200;
+  }
+
+  /* Typography */
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+
+  h2 {
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    margin-bottom: 36px;
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  p {
+    font-size: 18px;
+    line-height: 1.65;
+    color: #bbb;
+    max-width: 700px;
+  }
+
+  p + p { margin-top: 14px; }
+
+  .sub {
+    font-size: 22px;
+    color: #888;
+    margin-top: 20px;
+    max-width: 640px;
+    line-height: 1.55;
+  }
+
+  /* Code */
+  code, pre {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 14px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    line-height: 1.7;
+    color: #ccc;
+  }
+  .hi { color: var(--accent); }
+  .hi2 { color: var(--accent2); }
+  .hi3 { color: var(--green); }
+  .dim { color: var(--muted); }
+
+  /* Cards */
+  .cards {
+    display: grid;
+    gap: 16px;
+  }
+  .cards-2 { grid-template-columns: 1fr 1fr; }
+  .cards-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .card h3 { font-size: 16px; margin-bottom: 8px; }
+  .card p { font-size: 15px; color: #888; max-width: none; }
+
+  .card.accent-blue { border-color: #1e3a5f; background: #0d1f33; }
+  .card.accent-purple { border-color: #2d1f4e; background: #150d2e; }
+  .card.accent-green { border-color: #0d3322; background: #061a12; }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+  }
+  .tag-blue { background: #0d1f33; color: var(--accent); border: 1px solid #1e3a5f; }
+  .tag-purple { background: #150d2e; color: var(--accent2); border: 1px solid #2d1f4e; }
+  .tag-green { background: #061a12; color: var(--green); border: 1px solid #0d3322; }
+  .tag-yellow { background: #1f1200; color: var(--yellow); border: 1px solid #3d2600; }
+
+  /* Lists */
+  ul.clean { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  ul.clean li {
+    font-size: 17px;
+    color: #bbb;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.5;
+  }
+  ul.clean li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--muted);
+  }
+
+  /* Loop diagram */
+  .loop {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+  }
+  .loop-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 0;
+  }
+  .loop-node {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .node-blue { background: #0d1f33; color: var(--accent); border: 1px solid #1e3a5f; }
+  .node-purple { background: #150d2e; color: var(--accent2); border: 1px solid #2d1f4e; }
+  .node-green { background: #061a12; color: var(--green); border: 1px solid #0d3322; }
+  .node-yellow { background: #1f1200; color: var(--yellow); border: 1px solid #3d2600; }
+  .node-gray { background: #1a1a1a; color: #888; border: 1px solid #333; }
+  .arrow { color: var(--muted); font-size: 16px; }
+
+  /* File tree */
+  .tree {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: #aaa;
+  }
+  .tree .dir { color: var(--accent); }
+  .tree .file { color: #ccc; }
+  .tree .note { color: var(--muted); font-size: 12px; }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    color: #bbb;
+    vertical-align: top;
+  }
+  td:first-child { color: var(--text); font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #0d1f33;
+    border: 1px solid #1e3a5f;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-text { font-size: 16px; color: #bbb; line-height: 1.5; }
+  .step-text strong { color: var(--text); }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  /* Two col */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+  .two-col-6040 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: start; }
+
+  /* Highlight block */
+  .highlight-block {
+    background: #0d1f33;
+    border: 1px solid #1e3a5f;
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 18px 22px;
+    font-size: 16px;
+    color: #bbb;
+    line-height: 1.6;
+  }
+  .highlight-block strong { color: var(--text); }
+  .highlight-block.purple {
+    background: #150d2e;
+    border-color: #2d1f4e;
+    border-left-color: var(--accent2);
+  }
+  .highlight-block.green {
+    background: #061a12;
+    border-color: #0d3322;
+    border-left-color: var(--green);
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ──────────────────────────── SLIDE 1: Title ──────────────────────────── -->
+  <div class="slide active">
+    <div class="label">Claude Code · Skills Framework</div>
+    <h1>Self-Improving<br>Skills</h1>
+    <p class="sub">Skills that evaluate themselves after every run, propose one surgical fix, version the result, and get better — automatically.</p>
+    <div style="margin-top:40px; display:flex; gap:12px; flex-wrap:wrap;">
+      <span class="tag tag-blue">Claude Code</span>
+      <span class="tag tag-purple">LLM Self-Reflection</span>
+      <span class="tag tag-green">Eval-Driven</span>
+      <span class="tag tag-yellow">Auto-Versioning</span>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 2: The Problem ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Motivation</div>
+    <h2>Skills decay.<br>They don't improve.</h2>
+    <div class="cards cards-2" style="max-width:860px;">
+      <div class="card">
+        <h3>The current state</h3>
+        <p>You write a SKILL.md. It runs. It makes a mistake. You manually edit it. Maybe. Next session you forget why you made that change. No history. No signal. No loop.</p>
+      </div>
+      <div class="card">
+        <h3>The missing piece</h3>
+        <p>Every skill run contains signal — what worked, what didn't, what edge case appeared. That signal evaporates. Nothing captures it. Nothing learns from it.</p>
+      </div>
+    </div>
+    <div style="margin-top:28px;" class="highlight-block">
+      <strong>The gap:</strong> LLM skills are static documents maintained by humans. There's no mechanism to accumulate knowledge from runs into the skill itself.
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 3: What it is ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">What This Is</div>
+    <h2>A self-reflection<br>loop, built into every skill</h2>
+    <div class="two-col-6040">
+      <div>
+        <p>A self-improving skill is a normal <code>SKILL.md</code> + <code>scripts/</code> — wrapped with a feedback loop.</p>
+        <br>
+        <p>After each run, Claude checks its own output against the skill's evaluation criteria, identifies the most important gap, proposes a surgical fix to <code>SKILL.md</code>, and — if approved — updates itself, snapshots the old version, and logs what changed and why.</p>
+        <br>
+        <div class="highlight-block green" style="margin-top:8px;">
+          <strong>No manual scoring. No separate workflow step. No eval pack selection.</strong> The improvement is part of the skill run — fully automatic.
+        </div>
+      </div>
+      <div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text"><strong>Skill runs</strong> — normal execution</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text"><strong>Self-reflect</strong> — check output against eval criteria</div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text"><strong>Gap found?</strong> — propose one surgical edit</div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text"><strong>Approved?</strong> — snapshot → apply → log</div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-text"><strong>No gap?</strong> — silent. No noise.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 4: The Loop ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Architecture</div>
+    <h2>The Loop</h2>
+    <div class="two-col">
+      <div>
+        <div class="loop">
+          <div class="loop-row"><div class="loop-node node-blue">SKILL RUNS</div></div>
+          <div class="loop-row"><span class="arrow">↓</span></div>
+          <div class="loop-row"><div class="loop-node node-purple">/self-improving-instructions fires</div></div>
+          <div class="loop-row"><span class="arrow">↓</span></div>
+          <div class="loop-row"><div class="loop-node node-gray">eval/criteria.md populated? → NO → auto-select pack</div></div>
+          <div class="loop-row"><span class="arrow">↓</span></div>
+          <div class="loop-row"><div class="loop-node node-gray">Self-reflect against criteria</div></div>
+          <div class="loop-row"><span class="arrow">↓</span></div>
+          <div style="display:flex; gap:24px; align-items:flex-start; padding:4px 0;">
+            <div>
+              <div class="loop-node node-yellow" style="margin-bottom:8px;">Gap found</div>
+              <div style="font-size:12px; color:#888; padding-left:4px; line-height:1.7;">
+                → propose one edit<br>
+                → user: yes / adjust / skip<br>
+                → snapshot → apply → log
+              </div>
+            </div>
+            <div>
+              <div class="loop-node node-green">No gap</div>
+              <div style="font-size:12px; color:#888; padding-left:4px; margin-top:8px; line-height:1.7;">
+                → silent<br>
+                → stop
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px;">
+          <h3 style="color:var(--accent);">One edit at a time</h3>
+          <p>Never a rewrite. One instruction clarified, one missing step added, one ambiguous constraint tightened. CHANGELOG entries stay meaningful — each traces to one real gap.</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent2);">Silent when clean</h3>
+          <p>A skill that ran well generates zero noise. The loop only surfaces when there's a real gap. Silence = signal of quality.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 5: Directory Structure ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">File System</div>
+    <h2>Skill Directory Structure</h2>
+    <div class="two-col">
+      <pre class="tree"><span class="dir">~/.claude/skills/{skill-name}/</span>
+├── <span class="file">SKILL.md</span>            <span class="note">core instructions, &lt;300 lines</span>
+├── <span class="file">README.md</span>           <span class="note">user-facing docs</span>
+│
+├── <span class="dir">eval/</span>
+│   ├── <span class="file">criteria.md</span>     <span class="note">auto-populated on first run</span>
+│   └── <span class="file">examples.md</span>     <span class="note">2-3 golden I/O pairs</span>
+│
+├── <span class="dir">feedback/</span>
+│   ├── <span class="file">improvements.md</span> <span class="note">append-only improvement log</span>
+│   └── <span class="file">edge-cases.md</span>   <span class="note">uncovered situations</span>
+│
+├── <span class="dir">versions/</span>
+│   ├── <span class="file">v1.md</span>           <span class="note">full SKILL.md snapshot</span>
+│   ├── <span class="file">v2.md</span>           <span class="note">snapshot before next edit</span>
+│   └── <span class="file">CHANGELOG.md</span>    <span class="note">human-readable history</span>
+│
+└── <span class="dir">scripts/</span>            <span class="note">execution scripts (unchanged)</span></pre>
+      <div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:#150d2e;border-color:#2d1f4e;color:var(--accent2);">!</div>
+            <div class="step-text"><code>versions/vN.md</code> is written <strong>before</strong> the edit — never after. Rollback is always one <code>cp</code> command.</div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#150d2e;border-color:#2d1f4e;color:var(--accent2);">!</div>
+            <div class="step-text"><code>improvements.md</code> is <strong>append-only</strong> — the skill's full learning history.</div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#150d2e;border-color:#2d1f4e;color:var(--accent2);">!</div>
+            <div class="step-text"><code>criteria.md</code> is stable once set — improving the skill never moves the goalposts.</div>
+          </div>
+        </div>
+        <hr>
+        <pre style="margin-top:4px;"><span class="dim"># rollback to any version</span>
+cp ~/.claude/skills/<span class="hi">my-skill</span>/versions/<span class="hi2">v2.md</span> \
+   ~/.claude/skills/<span class="hi">my-skill</span>/SKILL.md</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 6: Eval System ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Evaluation System</div>
+    <h2>Eval Packs &<br>Auto-Selection</h2>
+    <div class="two-col">
+      <div>
+        <p>Criteria are built from two layers combined automatically on the first run against any new skill.</p>
+        <br>
+        <div class="card accent-blue" style="margin-bottom:14px;">
+          <h3 style="color:var(--accent);">Universal Evals (always included)</h3>
+          <p>Instruction-Following · Completeness · Accuracy · Hallucination · Safety/Risk · Constraint Adherence</p>
+        </div>
+        <div class="card accent-purple">
+          <h3 style="color:var(--accent2);">Type-Specific Packs (11 packs, 141 evals)</h3>
+          <p>Writing · Formatting/Conversion · Tool/API/Automation · Coding · Research · Multi-Turn · Agentic Workflow · Batch/Data · Self-Improvement · Security/Safety · Example/Retrieval</p>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:16px; color:#888; font-weight:500; font-size:15px;">How auto-selection works</h3>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">Read <code>SKILL.md</code> — description, output type, tools used</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">Match against type → pack table in <code>eval-pack-selector.md</code></div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">Copy pack + trim irrelevant evals → write to <code>eval/criteria.md</code></div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text">Inform user: <em>"Auto-selected Pack N: [type]"</em></div>
+          </div>
+        </div>
+        <br>
+        <div class="highlight-block purple">
+          One-time setup. No manual intervention. Manual override available if auto-selection is wrong (rare).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 7: 7-Step Loop ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">self-improving-instructions.md</div>
+    <h2>The 7-Step Loop</h2>
+    <div class="cards cards-2" style="gap:12px;">
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">1</div>
+          <div><strong>Locate the skill</strong><br><span style="font-size:14px;color:#888;">Find SKILL.md, criteria.md, edge-cases.md, versions/</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">2</div>
+          <div><strong>Auto-select eval pack</strong><br><span style="font-size:14px;color:#888;">If criteria.md has TODO → populate now, once only</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">3</div>
+          <div><strong>Self-reflect</strong><br><span style="font-size:14px;color:#888;">Pass / Partial / Miss against each criterion + edge-cases.md</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">4</div>
+          <div><strong>Decide</strong><br><span style="font-size:14px;color:#888;">No gap → silent. Gap → form one proposal with exact diff</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">5</div>
+          <div><strong>Handle response</strong><br><span style="font-size:14px;color:#888;">yes → apply · adjust → refine + apply · skip → log edge case</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 20px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div class="step-num">6</div>
+          <div><strong>Apply the edit</strong><br><span style="font-size:14px;color:#888;">Snapshot → edit → improvements.md → CHANGELOG.md → subagents</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px;" class="highlight-block">
+      <strong>Step 7 — Confirm:</strong> "Updated to v(N+1). [One sentence on what changed.]" — nothing more.
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 8: Versioning ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Versioning</div>
+    <h2>Full snapshots.<br>One-command rollback.</h2>
+    <div class="two-col-6040">
+      <div>
+        <pre><span class="dim"># improvements.md — machine-readable log</span>
+<span class="hi3">[2026-05-14]</span> v1→v2 | WHAT: Added null-check step before
+              batch API call | WHY: Completeness criterion
+
+<span class="hi3">[2026-05-21]</span> v2→v3 | WHAT: Tightened output format
+              constraint to enforce JSON-only | WHY: user suggestion
+
+<span class="hi3">[2026-05-28]</span> v3→v4 | WHAT: Added edge case handling for
+              empty sheet rows | WHY: edge-cases.md hit in live run</pre>
+        <br>
+        <pre><span class="dim"># CHANGELOG.md — human-readable</span>
+<span class="hi2">## v4 — 2026-05-28</span>
+- Added guard for empty rows in Google Sheets input
+- Triggered by live run on 19-row dataset with 2 blanks
+- Closes gap found in edge-cases.md from 2026-05-15</pre>
+      </div>
+      <div>
+        <div class="card accent-blue" style="margin-bottom:14px;">
+          <h3>Why full snapshots, not diffs</h3>
+          <p>The agent reads the full version history before proposing a new improvement. Full snapshots = trivial rollback + the agent can reason about the entire previous state, not reconstruct it from patches.</p>
+        </div>
+        <div class="card accent-green">
+          <h3>The agent reads history</h3>
+          <p>Before proposing, it reads <code>improvements.md</code> to avoid re-proposing reverted changes and to surface recurring patterns across runs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 9: Subagents ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Quality Gates</div>
+    <h2>Subagents run<br>after every edit</h2>
+    <table style="max-width:860px;">
+      <thead>
+        <tr>
+          <th>Subagent</th>
+          <th>When invoked</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code style="color:var(--accent);">documenter</code></td>
+          <td>After every accepted SKILL.md edit</td>
+          <td>Verifies the edit is coherent — no contradictions introduced, no broken cross-references, no duplicate instructions</td>
+        </tr>
+        <tr>
+          <td><code style="color:var(--accent2);">script-reviewer</code></td>
+          <td>When scripts/ were modified during evolution</td>
+          <td>Checks updated scripts for bugs, safety issues, and edge cases</td>
+        </tr>
+        <tr>
+          <td><code style="color:var(--green);">qa</code></td>
+          <td>Optional — when examples.md has executable inputs</td>
+          <td>Runs golden examples as regression tests after each edit — confirms known-good cases still pass</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:28px;" class="highlight-block purple">
+      <strong>Automatic.</strong> documenter and script-reviewer are invoked by <code>self-improving-instructions</code> directly — no manual calls needed. The skill protects its own coherence.
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 10: Adding a Skill ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Onboarding</div>
+    <h2>Wrapping any skill<br>in 30 seconds</h2>
+    <div class="two-col">
+      <div>
+        <p style="margin-bottom:20px;">One script creates the full directory structure, stubs every file, snapshots v1, and adds the self-improving footer to SKILL.md.</p>
+        <pre><span class="dim"># Wrap an existing skill</span>
+bash import-skill.sh \
+  ~/.claude/skills/<span class="hi">my-skill</span>/SKILL.md
+
+<span class="dim"># After first skill run</span>
+/<span class="hi2">self-improving-instructions</span>
+
+<span class="dim"># Manual loop trigger (any time)</span>
+/<span class="hi2">self-improving-instructions</span> my-skill</pre>
+        <br>
+        <div class="highlight-block green">
+          The <strong>only manual step</strong> after running the script: write 2–3 entries in <code>eval/examples.md</code>. Everything else is automatic.
+        </div>
+      </div>
+      <div>
+        <h3 style="color:#888; font-size:14px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; margin-bottom:16px;">When to create a skill at all</h3>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:#061a12;border-color:#0d3322;color:var(--green);">✓</div>
+            <div class="step-text">Used <strong>2+ times</strong> — not a one-off</div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#061a12;border-color:#0d3322;color:var(--green);">✓</div>
+            <div class="step-text"><strong>3+ steps</strong> or meaningful decisions involved</div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#061a12;border-color:#0d3322;color:var(--green);">✓</div>
+            <div class="step-text"><strong>Stable enough</strong> to document — workflow won't change completely next week</div>
+          </div>
+        </div>
+        <hr>
+        <p style="font-size:15px;">If simpler than 3 steps → add to <code>CLAUDE.md</code> or memory instead.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 11: Design Decisions ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Design Decisions</div>
+    <h2>What we deliberately<br>left out</h2>
+    <table style="max-width:900px;">
+      <thead>
+        <tr>
+          <th>Dropped</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1–5 rating system</td>
+          <td>Scores are vague — they don't tell the model what to fix. Self-reflection against specific criteria is actionable. Scores are not.</td>
+        </tr>
+        <tr>
+          <td>successes.md / failures.md</td>
+          <td>Not useful without ratings. <code>improvements.md</code> and <code>edge-cases.md</code> carry the same signal more cleanly.</td>
+        </tr>
+        <tr>
+          <td>Manual eval pack selection</td>
+          <td>Auto-selection on first run eliminates this entirely. One less thing to configure.</td>
+        </tr>
+        <tr>
+          <td>Simulation agent</td>
+          <td>Powerful but complex. Build after the manual loop is battle-tested on several real skills. See Phase 2.</td>
+        </tr>
+        <tr>
+          <td>Install wizard / config file</td>
+          <td>Overkill for personal tooling. The framework doc covers every decision.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 12: Phase 2 ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Roadmap</div>
+    <h2>Phase 2:<br>Simulation Agent</h2>
+    <div class="two-col">
+      <div>
+        <p>Not built yet. The architecture is defined — build this once the manual feedback loop has been validated on several real skills and the file structures are stable.</p>
+        <br>
+        <div class="card accent-purple">
+          <h3 style="color:var(--accent2);">What it does</h3>
+          <p>Generates synthetic test scenarios for any skill. Runs evals without needing a real user session. Auto-applies improvements when confidence is high enough.</p>
+        </div>
+        <br>
+        <div class="card accent-blue">
+          <h3>Why this order matters</h3>
+          <p>Manual loop first — validates the structure, builds intuition for what makes a good improvement proposal, surfaces edge cases in the loop itself. Then automate.</p>
+        </div>
+      </div>
+      <div>
+        <div class="highlight-block purple" style="margin-bottom:20px;">
+          <strong>Current loop:</strong> Run → eval check → propose one edit → human approves → snapshot → apply → log
+        </div>
+        <div class="highlight-block green">
+          <strong>Phase 2 loop:</strong> Simulate → eval check → propose one edit → confidence threshold → auto-apply → log → notify human
+        </div>
+        <br>
+        <p style="font-size:15px;">The file structure is already Phase 2 ready. No changes needed to <code>versions/</code>, <code>improvements.md</code>, or <code>CHANGELOG.md</code>. The simulation agent writes to the same places.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────── SLIDE 13: Summary ──────────────────────────── -->
+  <div class="slide">
+    <div class="label">Summary</div>
+    <h2>The system<br>in one slide</h2>
+    <div class="cards cards-3">
+      <div class="card accent-blue">
+        <h3 style="color:var(--accent);">Automatic</h3>
+        <p>Eval pack selected, criteria populated, subagents invoked — all without user setup. Run once, get a fully structured skill.</p>
+      </div>
+      <div class="card accent-purple">
+        <h3 style="color:var(--accent2);">Surgical</h3>
+        <p>One improvement per loop. One snapshot per change. Every CHANGELOG entry traces to one real gap. No rewrites, no drift.</p>
+      </div>
+      <div class="card accent-green">
+        <h3 style="color:var(--green);">Reversible</h3>
+        <p>Full SKILL.md snapshots at every version. Rollback = one <code>cp</code>. Append-only logs mean history is never lost.</p>
+      </div>
+    </div>
+    <div style="margin-top:24px;" class="highlight-block">
+      <strong>Parent principle (self-annealing):</strong> Fix → Test → Update SKILL.md → System is stronger<br>
+      <strong>This framework:</strong> Run → Eval check → Propose one edit → Snapshot → Apply → Log → System is stronger
+    </div>
+    <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
+      <span style="color:var(--muted); font-size:14px;">GitHub →</span>
+      <code style="font-size:14px; color:var(--accent);">github.com/iliyanivanovmp-stack/self-improving-skills</code>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="nav-btn" id="prev" onclick="navigate(-1)">←</button>
+  <span class="slide-counter" id="counter">1 / 13</span>
+  <button class="nav-btn" id="next" onclick="navigate(1)">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  function show(n) {
+    slides[current].classList.remove('active');
+    current = (n + total) % total;
+    slides[current].classList.add('active');
+    document.getElementById('counter').textContent = `${current + 1} / ${total}`;
+    document.getElementById('progress').style.width = `${((current + 1) / total) * 100}%`;
+  }
+
+  function navigate(dir) { show(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') navigate(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') navigate(-1);
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(total - 1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) navigate(dx > 0 ? 1 : -1);
+  });
+
+  // Init progress
+  document.getElementById('progress').style.width = `${(1 / total) * 100}%`;
+</script>
+</body>
+</html>
